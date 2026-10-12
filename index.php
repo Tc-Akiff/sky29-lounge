@@ -174,7 +174,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
         <div id="tab-utama" class="section-tab active">
             <div class="hero-card">
                 <span class="badge-tag">SISTEM PINTAR</span>
-                2222222222222Selamat Datang,</h2>
+                <h2>Selamat Datang,</h2>
                 <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 16px;">Sistem Tempahan Lounge SKY29</p>
                 
                 <a href="login.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
