@@ -24,7 +24,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     $masa_tamat =$_POST['masa_tamat'] ?? '';
     $tujuan     =$_POST['tujuan'] ?? '';
 
-    if (empty($nama) \vert{}\vert{} empty($tarikh) || empty($masa_mula) \vert{}\vert{} empty($masa_tamat)) {
+    if (empty($nama) || empty($tarikh) || empty($masa_mula) || empty($masa_tamat)) {
         echo json_encode(['status' => 'error', 'message' => 'Sila lengkapkan semua maklumat wajib.']);
         exit;
     }
@@ -32,7 +32,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     $stmt =$db->prepare("SELECT * FROM tempahan WHERE tarikh = :tarikh AND (:masa_mula < masa_tamat AND :masa_tamat > masa_mula)");
     $stmt->execute([':tarikh' =>$tarikh, ':masa_mula' => $masa_mula, ':masa_tamat' =>$masa_tamat]);
 
-    if (\$stmt->fetch()) {
+    if ($stmt->fetch()) {
         echo json_encode(['status' => 'error', 'message' => 'SLOT BERTINDIH! Masa ini telah ditempah oleh pengguna lain.']);
         exit;
     }
@@ -46,7 +46,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     echo json_encode([
         'status' => 'success', 
         'message' => 'Tempahan berjaya dihantar!',
-        'booking_id' => \$booking_id
+        'booking_id' => $booking_id
     ]);
     exit;
 }
