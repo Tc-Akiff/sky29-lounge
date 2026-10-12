@@ -1,108 +1,3 @@
-<?php
-$db_file = __DIR__ . '/sky29_lounge.sqlite';
-try {
-    $db = new PDO("sqlite:" . $db_file);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // Buka jadual tempahan
-    $db->exec("CREATE TABLE IF NOT EXISTS tempahan (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nama TEXT, bahagian TEXT, no_tel TEXT, email TEXT,
-        tarikh TEXT, masa_mula TEXT, masa_tamat TEXT, tujuan TEXT,
-        status TEXT DEFAULT 'PENDING'
-    )");
-
-    // Buka jadual audit log
-    $db->exec("CREATE TABLE IF NOT EXISTS audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tempahan_id INTEGER,
-        tindakan TEXT,
-        dilakukan_oleh TEXT,
-        tarikh_masa DATETIME DEFAULT CURRENT_TIMESTAMP
-    )");
-} catch (Exception $e) {
-}
-
-// Simpan Tempahan Baru
-if (isset($_GET['action']) && $_GET['action'] === 'save') {
-    header('Content-Type: application/json');
-    
-    $nama       = $_POST['nama'] ?? '';
-    $bahagian   = $_POST['bahagian'] ?? '';
-    $no_tel     = $_POST['no_tel'] ?? '';
-    $email      = $_POST['email'] ?? '';
-    $tarikh     = $_POST['tarikh'] ?? '';
-    $masa_mula  = $_POST['masa_mula'] ?? '';
-    $masa_tamat = $_POST['masa_tamat'] ?? '';
-    $tujuan     = $_POST['tujuan'] ?? '';
-
-    if (empty($nama) || empty($tarikh) || empty($masa_mula) || empty($masa_tamat)) {
-        echo json_encode(['status' => 'error', 'message' => 'Sila lengkapkan semua maklumat wajib.']);
-        exit;
-    }
-
-    $stmt = $db->prepare("SELECT * FROM tempahan WHERE tarikh = :tarikh AND status != 'DIBATALKAN' AND (:masa_mula < masa_tamat AND :masa_tamat > masa_mula)");
-    $stmt->execute([':tarikh' => $tarikh, ':masa_mula' => $masa_mula, ':masa_tamat' => $masa_tamat]);
-
-    if ($stmt->fetch()) {
-        echo json_encode(['status' => 'error', 'message' => 'SLOT BERTINDIH! Masa ini telah ditempah oleh pengguna lain.']);
-        exit;
-    }
-
-    $insert = $db->prepare("INSERT INTO tempahan (nama, bahagian, no_tel, email, tarikh, masa_mula, masa_tamat, tujuan) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $insert->execute([$nama, $bahagian, $no_tel, $email, $tarikh, $masa_mula, $masa_tamat, $tujuan]);
-
-    $last_id = $db->lastInsertId();
-    $booking_id = "#SKY" . str_pad($last_id, 5, '0', STR_PAD_LEFT);
-
-    // Rekod Audit Log
-    $log = $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)");
-    $log->execute([$last_id, 'PERMOHONAN_BARU', $nama . ' (Pemohon)']);
-
-    echo json_encode([
-        'status' => 'success', 
-        'message' => 'Tempahan berjaya dihantar!',
-        'booking_id' => $booking_id
-    ]);
-    exit;
-}
-
-// Semak Status Tempahan
-if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
-    header('Content-Type: application/json');
-    $query = $_POST['carian'] ?? '';
-
-    $stmt = $db->prepare("SELECT * FROM tempahan WHERE no_tel = :q OR email = :q ORDER BY id DESC");
-    $stmt->execute([':q' => $query]);
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    echo json_encode($results);
-    exit;
-}
-
-// Pembatalan Sendiri Oleh Pemohon
-if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
-    header('Content-Type: application/json');
-    $id = $_POST['id'] ?? 0;
-
-    $stmt = $db->prepare("SELECT * FROM tempahan WHERE id = ?");
-    $stmt->execute([$id]);
-    $data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($data) {
-        $update = $db->prepare("UPDATE tempahan SET status = 'DIBATALKAN' WHERE id = ?");
-        $update->execute([$id]);
-
-        $log = $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)");
-        $log->execute([$id, 'PEMBATALAN_PEMOHON', $data['nama'] . ' (Pemohon)']);
-
-        echo json_encode(['status' => 'success', 'message' => 'Tempahan anda telah dibatalkan.']);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Rekod tidak dijumpai.']);
-    }
-    exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="ms">
 <head>
@@ -110,6 +5,26 @@ if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Tempahan Lounge SKY29</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyC_hESDUgVpm-x_Ld5cE2gfMepz7SiwaGs",
+          authDomain: "sky29-lounge.firebaseapp.com",
+          projectId: "sky29-lounge",
+          storageBucket: "sky29-lounge.firebasestorage.app",
+          messagingSenderId: "265145556160",
+          appId: "1:265145556160:web:441cb15f46a570695fa125",
+          measurementId: "G-HWJBY59SE4"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+
     <style>
         * { box-sizing: border-box; font-family: 'Poppins', sans-serif; margin: 0; padding: 0; }
         body {
@@ -182,7 +97,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
                 <span class="badge-tag">SISTEM PINTAR</span>
                 <h2>Selamat Datang,</h2>
                 <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 16px;">Sistem Tempahan Lounge SKY29</p>
-                <a href="admin_dashboard.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
+                <a href="login.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
             </div>
             <div class="grid-action">
                 <div class="action-card" onclick="switchTab('tab-tempah')">
@@ -244,7 +159,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
                     <label>7. Tujuan Tempahan *</label>
                     <input type="text" id="tujuan" placeholder="Cth: Mesyuarat Khas" required>
                 </div>
-                <button type="submit" class="btn-primary">Hantar Tempahan</button>
+                <button type="submit" class="btn-primary" id="btnHantar">Hantar Tempahan</button>
             </form>
         </div>
 
@@ -319,83 +234,134 @@ if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
 
         document.getElementById('formTempahan').addEventListener('submit', function(e) {
             e.preventDefault();
-            var formData = new FormData();
-            formData.append('nama', document.getElementById('nama').value);
-            formData.append('bahagian', document.getElementById('bahagian').value);
-            formData.append('no_tel', document.getElementById('no_tel').value);
-            formData.append('email', document.getElementById('email').value);
-            formData.append('tarikh', document.getElementById('tarikh').value);
-            formData.append('masa_mula', document.getElementById('masa_mula').value);
-            formData.append('masa_tamat', document.getElementById('masa_tamat').value);
-            formData.append('tujuan', document.getElementById('tujuan').value);
+            
+            var btn = document.getElementById('btnHantar');
+            btn.innerText = "Sila tunggu...";
+            btn.disabled = true;
 
-            fetch('index.php?action=save', { method: 'POST', body: formData })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data.status === 'success') {
-                    alert('Tempahan Berjaya Dihantar! ID Tempahan Anda: ' + data.booking_id);
-                    document.getElementById('formTempahan').reset();
-                    switchTab('tab-status');
-                } else {
-                    alert(data.message);
-                }
-            });
+            var nama = document.getElementById('nama').value;
+            var bahagian = document.getElementById('bahagian').value;
+            var no_tel = document.getElementById('no_tel').value;
+            var email = document.getElementById('email').value;
+            var tarikh = document.getElementById('tarikh').value;
+            var masa_mula = document.getElementById('masa_mula').value;
+            var masa_tamat = document.getElementById('masa_tamat').value;
+            var tujuan = document.getElementById('tujuan').value;
+
+            db.collection("tempahan")
+              .where("tarikh", "==", tarikh)
+              .get()
+              .then(function(querySnapshot) {
+                  var bertindih = false;
+                  querySnapshot.forEach(function(doc) {
+                      var d = doc.data();
+                      if (d.status !== "DIBATALKAN") {
+                          if (masa_mula < d.masa_tamat && masa_tamat > d.masa_mula) {
+                              bertindih = true;
+                          }
+                      }
+                  });
+
+                  if (bertindih) {
+                      alert("SLOT BERTINDIH! Masa ini telah ditempah oleh pengguna lain.");
+                      btn.innerText = "Hantar Tempahan";
+                      btn.disabled = false;
+                      return;
+                  }
+
+                  db.collection("tempahan").add({
+                      nama: nama,
+                      bahagian: bahagian,
+                      no_tel: no_tel,
+                      email: email,
+                      tarikh: tarikh,
+                      masa_mula: masa_mula,
+                      masa_tamat: masa_tamat,
+                      tujuan: tujuan,
+                      status: "PENDING",
+                      created_at: firebase.firestore.FieldValue.serverTimestamp()
+                  }).then(function(docRef) {
+                      var booking_id = "#SKY" + docRef.id.substring(0, 5).toUpperCase();
+
+                      db.collection("audit_log").add({
+                          tempahan_id: booking_id,
+                          tindakan: "PERMOHONAN_BARU",
+                          dilakukan_oleh: nama + " (Pemohon)",
+                          tarikh_masa: new Date().toLocaleString('ms-MY')
+                      });
+
+                      alert("Tempahan Berjaya Dihantar! ID Tempahan Anda: " + booking_id);
+                      document.getElementById('formTempahan').reset();
+                      btn.innerText = "Hantar Tempahan";
+                      btn.disabled = false;
+                      switchTab('tab-status');
+                  });
+              });
         });
 
         function semakStatus() {
-            var input = document.getElementById('carian_status').value;
+            var input = document.getElementById('carian_status').value.trim();
             if(!input) { alert('Sila masukkan No. Tel atau E-mel'); return; }
-            var formData = new FormData();
-            formData.append('carian', input);
+            
+            var container = document.getElementById('keputusan-status');
+            container.innerHTML = '<p style="font-size:12px; color:rgba(255,255,255,0.6);">Mencari rekod...</p>';
 
-            fetch('index.php?action=check_status', { method: 'POST', body: formData })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                var container = document.getElementById('keputusan-status');
+            db.collection("tempahan").get().then(function(querySnapshot) {
                 container.innerHTML = '';
-                if(data.length === 0) {
-                    container.innerHTML = '<p style="font-size:12px; color:rgba(255,255,255,0.6);">Tiada rekod dijumpai.</p>';
-                    return;
-                }
-                for(var k = 0; k < data.length; k++) {
-                    var item = data[k];
-                    var itemBox = document.createElement('div');
-                    itemBox.className = 'facility-card';
-                    itemBox.style.flexDirection = 'column';
-                    itemBox.style.alignItems = 'flex-start';
+                var jumpa = false;
 
-                    var badgeColor = '#FBBF24';
-                    var badgeBg = 'rgba(245, 158, 11, 0.2)';
-                    if(item.status === 'LULUS') { badgeColor = '#34D399'; badgeBg = 'rgba(52, 211, 153, 0.2)'; }
-                    if(item.status === 'DIBATALKAN') { badgeColor = '#F87171'; badgeBg = 'rgba(248, 113, 113, 0.2)'; }
+                querySnapshot.forEach(function(doc) {
+                    var item = doc.data();
+                    if (item.no_tel === input || item.email === input) {
+                        jumpa = true;
+                        var docId = doc.id;
+                        var booking_id = "#SKY" + docId.substring(0, 5).toUpperCase();
 
-                    var cancelBtn = '';
-                    if (item.status !== 'DIBATALKAN') {
-                        cancelBtn = '<button class="btn-danger" onclick="batalkanSendiri(' + item.id + ')">Batalkan Tempahan Ini</button>';
+                        var badgeColor = '#FBBF24';
+                        var badgeBg = 'rgba(245, 158, 11, 0.2)';
+                        if(item.status === 'LULUS') { badgeColor = '#34D399'; badgeBg = 'rgba(52, 211, 153, 0.2)'; }
+                        if(item.status === 'DIBATALKAN') { badgeColor = '#F87171'; badgeBg = 'rgba(248, 113, 113, 0.2)'; }
+
+                        var cancelBtn = '';
+                        if (item.status !== 'DIBATALKAN') {
+                            cancelBtn = '<button class="btn-danger" onclick="batalkanSendiri(\'' + docId + '\', \'' + item.nama + '\', \'' + booking_id + '\')">Batalkan Tempahan Ini</button>';
+                        }
+
+                        var itemBox = document.createElement('div');
+                        itemBox.className = 'facility-card';
+                        itemBox.style.flexDirection = 'column';
+                        itemBox.style.alignItems = 'flex-start';
+                        itemBox.innerHTML = 
+                            '<div style="display:flex; justify-content:space-between; width:100%;">' +
+                                '<strong>' + booking_id + '</strong>' +
+                                '<span class="badge-tag" style="background:' + badgeBg + '; color:' + badgeColor + ';">' + item.status + '</span>' +
+                            '</div>' +
+                            '<p style="font-size:12px; margin-top:6px;">Tarikh: ' + item.tarikh + ' (' + item.masa_mula + ' - ' + item.masa_tamat + ')</p>' +
+                            '<p style="font-size:11px; color:rgba(255,255,255,0.6);">Tujuan: ' + item.tujuan + '</p>' +
+                            cancelBtn;
+                        container.appendChild(itemBox);
                     }
+                });
 
-                    itemBox.innerHTML = 
-                        '<div style="display:flex; justify-content:space-between; width:100%;">' +
-                            '<strong>#SKY' + String(item.id).padStart(5, '0') + '</strong>' +
-                            '<span class="badge-tag" style="background:' + badgeBg + '; color:' + badgeColor + ';">' + item.status + '</span>' +
-                        '</div>' +
-                        '<p style="font-size:12px; margin-top:6px;">Tarikh: ' + item.tarikh + ' (' + item.masa_mula + ' - ' + item.masa_tamat + ')</p>' +
-                        '<p style="font-size:11px; color:rgba(255,255,255,0.6);">Tujuan: ' + item.tujuan + '</p>' +
-                        cancelBtn;
-                    container.appendChild(itemBox);
+                if(!jumpa) {
+                    container.innerHTML = '<p style="font-size:12px; color:rgba(255,255,255,0.6);">Tiada rekod dijumpai.</p>';
                 }
             });
         }
 
-        function batalkanSendiri(id) {
+        function batalkanSendiri(docId, namaPemohon, bookingId) {
             if (confirm('Adakah anda pasti untuk membatalkan tempahan ini?')) {
-                var formData = new FormData();
-                formData.append('id', id);
+                db.collection("tempahan").doc(docId).update({
+                    status: "DIBATALKAN"
+                }).then(function() {
+                    db.collection("audit_log").add({
+                        tempahan_id: bookingId,
+                        tindakan: "PEMBATALAN_PEMOHON",
+                        dilakukan_oleh: namaPemohon + " (Pemohon)",
+                        tarikh_masa: new Date().toLocaleString('ms-MY')
+                    });
 
-                fetch('index.php?action=user_cancel', { method: 'POST', body: formData })
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    alert(data.message);
+                    alert('Tempahan anda telah dibatalkan.');
                     semakStatus();
                 });
             }
