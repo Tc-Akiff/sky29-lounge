@@ -88,7 +88,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ms">
 <head>
@@ -114,7 +113,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
 
         .container { max-width: 500px; margin: 0 auto; padding: 20px; }
 
-        /* KAD UTAMA (HEADER) */
         .hero-card {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(56, 189, 248, 0.1));
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
@@ -127,7 +125,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             padding: 5px 12px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 10px;
         }
 
-        /* GRID Pilihan Pantas */
         .grid-action { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
         .action-card {
             background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);
@@ -136,7 +133,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
         }
         .action-card:hover { background: rgba(56, 189, 248, 0.2); transform: translateY(-2px); }
 
-        /* KAD FASILITI */
         .facility-card {
             background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);
             border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.18);
@@ -144,7 +140,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
         }
         .facility-img { width: 85px; height: 85px; border-radius: 16px; object-fit: cover; }
 
-        /* INPUT STYLES */
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; margin-bottom: 6px; color: rgba(255,255,255,0.8); }
         .form-group input, .form-group select {
@@ -152,18 +147,16 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             background: rgba(255,255,255,0.1); color: #fff; font-size: 13px; outline: none;
         }
 
-        /* NAVIGATION BAR BAWAH (BOTTOM NAV) */
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(5, 9, 20, 0.85); backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
-            display: flex; justify-style: space-around; padding: 12px 0; z-index: 1000;
+            display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000;
         }
         .nav-item { text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 11px; text-decoration: none; cursor: pointer; flex: 1; }
         .nav-item.active { color: #38BDF8; font-weight: 600; }
         .nav-item div { font-size: 18px; margin-bottom: 2px; }
 
-        /* MODAL STYLES */
         .section-tab { display: none; }
         .section-tab.active { display: block; }
         
@@ -180,11 +173,11 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
         <!-- TAB 1: LAMAN UTAMA -->
         <div id="tab-utama" class="section-tab active">
             <div class="hero-card">
-                <span class="badge-tag">✦ SISTEM PINTAR</span>
-                <h2>Selamat Datang,</h2>
+                <span class="badge-tag">SISTEM PINTAR</span>
+                2222222222222Selamat Datang,</h2>
                 <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 16px;">Sistem Tempahan Lounge SKY29</p>
                 
-                <a href="login.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin →</a>
+                <a href="login.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
             </div>
 
             <div class="grid-action">
@@ -206,13 +199,13 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
                 <div>
                     <span class="badge-tag" style="margin-bottom:4px;">LOUNGE</span>
                     <h4 style="font-size:15px;">Lounge SKY29 Utama</h4>
-                    <p style="font-size:11px; color:rgba(255,255,255,0.6);">Kapasiti: 30-50 Orang • Smart TV • Audio</p>
+                    <p style="font-size:11px; color:rgba(255,255,255,0.6);">Kapasiti: 30-50 Orang | Smart TV | Audio</p>
                     <button class="btn-primary" style="padding:6px 12px; font-size:11px; margin-top:8px;" onclick="switchTab('tab-tempah')">Pilih Fasiliti</button>
                 </div>
             </div>
         </div>
 
-        <!-- TAB 2: PROSES TEMPAHAN (BERTINGKAT) -->
+        <!-- TAB 2: PROSES TEMPAHAN -->
         <div id="tab-tempah" class="section-tab">
             <h3 style="margin-bottom: 16px;">Tempah Lounge SKY29</h3>
             
@@ -301,7 +294,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             }
         }
 
-        // Hantar Tempahan
         document.getElementById('formTempahan').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -322,16 +314,15 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert('✓ Tempahan Berjaya Dihantar! ID Tempahan Anda: ' + data.booking_id);
+                    alert('Tempahan Berjaya Dihantar! ID Tempahan Anda: ' + data.booking_id);
                     document.getElementById('formTempahan').reset();
                     switchTab('tab-status');
                 } else {
-                    alert('⚠️ ' + data.message);
+                    alert(data.message);
                 }
             });
         });
 
-        // Semak Status Tempahan
         function semakStatus() {
             const input = document.getElementById('carian_status').value;
             if(!input) { alert('Sila masukkan No. Tel atau E-mel'); return; }
