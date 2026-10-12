@@ -4,15 +4,26 @@ try {
     $db = new PDO("sqlite:" . $db_file);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+    // Buka jadual tempahan
     $db->exec("CREATE TABLE IF NOT EXISTS tempahan (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nama TEXT, bahagian TEXT, no_tel TEXT, email TEXT,
         tarikh TEXT, masa_mula TEXT, masa_tamat TEXT, tujuan TEXT,
         status TEXT DEFAULT 'PENDING'
     )");
+
+    // Buka jadual audit log
+    $db->exec("CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tempahan_id INTEGER,
+        tindakan TEXT,
+        dilakukan_oleh TEXT,
+        tarikh_masa DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
 } catch (Exception $e) {
 }
 
+// Simpan Tempahan Baru
 if (isset($_GET['action']) && $_GET['action'] === 'save') {
     header('Content-Type: application/json');
     
@@ -30,7 +41,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'save') {
         exit;
     }
 
-    $stmt = $db->prepare("SELECT * FROM tempahan WHERE tarikh = :tarikh AND (:masa_mula < masa_tamat AND :masa_tamat > masa_mula)");
+    $stmt = $db->prepare("SELECT * FROM tempahan WHERE tarikh = :tarikh AND status != 'DIBATALKAN' AND (:masa_mula < masa_tamat AND :masa_tamat > masa_mula)");
     $stmt->execute([':tarikh' => $tarikh, ':masa_mula' => $masa_mula, ':masa_tamat' => $masa_tamat]);
 
     if ($stmt->fetch()) {
@@ -44,6 +55,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'save') {
     $last_id = $db->lastInsertId();
     $booking_id = "#SKY" . str_pad($last_id, 5, '0', STR_PAD_LEFT);
 
+    // Rekod Audit Log
+    $log = $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)");
+    $log->execute([$last_id, 'PERMOHONAN_BARU', $nama . ' (Pemohon)']);
+
     echo json_encode([
         'status' => 'success', 
         'message' => 'Tempahan berjaya dihantar!',
@@ -52,6 +67,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'save') {
     exit;
 }
 
+// Semak Status Tempahan
 if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
     header('Content-Type: application/json');
     $query = $_POST['carian'] ?? '';
@@ -61,6 +77,29 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode($results);
+    exit;
+}
+
+// Pembatalan Sendiri Oleh Pemohon
+if (isset($_GET['action']) && $_GET['action'] === 'user_cancel') {
+    header('Content-Type: application/json');
+    $id = $_POST['id'] ?? 0;
+
+    $stmt = $db->prepare("SELECT * FROM tempahan WHERE id = ?");
+    $stmt->execute([$id]);
+    $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($data) {
+        $update = $db->prepare("UPDATE tempahan SET status = 'DIBATALKAN' WHERE id = ?");
+        $update->execute([$id]);
+
+        $log = $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)");
+        $log->execute([$id, 'PEMBATALAN_PEMOHON', $data['nama'] . ' (Pemohon)']);
+
+        echo json_encode(['status' => 'success', 'message' => 'Tempahan anda telah dibatalkan.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Rekod tidak dijumpai.']);
+    }
     exit;
 }
 ?>
@@ -116,7 +155,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(5, 9, 20, 0.85); backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
-            display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000;
+            display: flex; justify-style: space-around; padding: 12px 0; z-index: 1000;
         }
         .nav-item { text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 11px; cursor: pointer; flex: 1; }
         .nav-item.active { color: #38BDF8; font-weight: 600; }
@@ -126,6 +165,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
         .btn-primary {
             width: 100%; padding: 14px; background: linear-gradient(135deg, #38BDF8, #0284C7);
             border: none; border-radius: 16px; color: #fff; font-weight: 600; cursor: pointer; margin-top: 12px;
+        }
+        .btn-danger {
+            padding: 6px 12px; background: #EF4444; border: none; border-radius: 10px; color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 8px;
         }
         .back-link {
             color: #38BDF8; font-size: 12px; text-decoration: none; display: inline-block; margin-bottom: 12px; cursor: pointer;
@@ -140,7 +182,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
                 <span class="badge-tag">SISTEM PINTAR</span>
                 <h2>Selamat Datang,</h2>
                 <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 16px;">Sistem Tempahan Lounge SKY29</p>
-                <a href="login.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
+                <a href="admin_dashboard.php" style="color:#38BDF8; font-size:12px; text-decoration:none;">Portal Admin -></a>
             </div>
             <div class="grid-action">
                 <div class="action-card" onclick="switchTab('tab-tempah')">
@@ -321,16 +363,42 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
                     itemBox.className = 'facility-card';
                     itemBox.style.flexDirection = 'column';
                     itemBox.style.alignItems = 'flex-start';
+
+                    var badgeColor = '#FBBF24';
+                    var badgeBg = 'rgba(245, 158, 11, 0.2)';
+                    if(item.status === 'LULUS') { badgeColor = '#34D399'; badgeBg = 'rgba(52, 211, 153, 0.2)'; }
+                    if(item.status === 'DIBATALKAN') { badgeColor = '#F87171'; badgeBg = 'rgba(248, 113, 113, 0.2)'; }
+
+                    var cancelBtn = '';
+                    if (item.status !== 'DIBATALKAN') {
+                        cancelBtn = '<button class="btn-danger" onclick="batalkanSendiri(' + item.id + ')">Batalkan Tempahan Ini</button>';
+                    }
+
                     itemBox.innerHTML = 
                         '<div style="display:flex; justify-content:space-between; width:100%;">' +
                             '<strong>#SKY' + String(item.id).padStart(5, '0') + '</strong>' +
-                            '<span class="badge-tag" style="background:rgba(245, 158, 11, 0.2); color:#FBBF24;">' + item.status + '</span>' +
+                            '<span class="badge-tag" style="background:' + badgeBg + '; color:' + badgeColor + ';">' + item.status + '</span>' +
                         '</div>' +
                         '<p style="font-size:12px; margin-top:6px;">Tarikh: ' + item.tarikh + ' (' + item.masa_mula + ' - ' + item.masa_tamat + ')</p>' +
-                        '<p style="font-size:11px; color:rgba(255,255,255,0.6);">Tujuan: ' + item.tujuan + '</p>';
+                        '<p style="font-size:11px; color:rgba(255,255,255,0.6);">Tujuan: ' + item.tujuan + '</p>' +
+                        cancelBtn;
                     container.appendChild(itemBox);
                 }
             });
+        }
+
+        function batalkanSendiri(id) {
+            if (confirm('Adakah anda pasti untuk membatalkan tempahan ini?')) {
+                var formData = new FormData();
+                formData.append('id', id);
+
+                fetch('index.php?action=user_cancel', { method: 'POST', body: formData })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    alert(data.message);
+                    semakStatus();
+                });
+            }
         }
     </script>
 </body>
