@@ -24,7 +24,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     $masa_tamat =$_POST['masa_tamat'] ?? '';
     $tujuan     =$_POST['tujuan'] ?? '';
 
-    if (empty($nama) || empty($tarikh) || empty($masa_mula) || empty($masa_tamat)) {
+    if (empty($nama) \vert{}\vert{} empty($tarikh) || empty($masa_mula) \vert{}\vert{} empty($masa_tamat)) {
         echo json_encode(['status' => 'error', 'message' => 'Sila lengkapkan semua maklumat wajib.']);
         exit;
     }
@@ -32,7 +32,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     $stmt =$db->prepare("SELECT * FROM tempahan WHERE tarikh = :tarikh AND (:masa_mula < masa_tamat AND :masa_tamat > masa_mula)");
     $stmt->execute([':tarikh' =>$tarikh, ':masa_mula' => $masa_mula, ':masa_tamat' =>$masa_tamat]);
 
-    if ($stmt->fetch()) {
+    if (\$stmt->fetch()) {
         echo json_encode(['status' => 'error', 'message' => 'SLOT BERTINDIH! Masa ini telah ditempah oleh pengguna lain.']);
         exit;
     }
@@ -46,7 +46,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'save') {
     echo json_encode([
         'status' => 'success', 
         'message' => 'Tempahan berjaya dihantar!',
-        'booking_id' => $booking_id
+        'booking_id' => \$booking_id
     ]);
     exit;
 }
@@ -81,7 +81,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'check_status') {
             background-position: center; background-repeat: no-repeat; background-size: cover; background-attachment: fixed;
             color: #FFFFFF; padding-bottom: 90px; min-height: 100vh;
         }
-        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .app-container { display: flex; flex-direction: column; flex: 1; width: 100%; max-width: 500px; margin: 0 auto; padding: 20px; }
         .hero-card {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(56, 189, 248, 0.1));
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
@@ -115,7 +115,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'check_status') {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(5, 9, 20, 0.85); backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
-            display: flex; justify-style: space-around; padding: 12px 0; z-index: 1000;
+            display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000;
         }
         .nav-item { text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 11px; cursor: pointer; flex: 1; }
         .nav-item.active { color: #38BDF8; font-weight: 600; }
@@ -129,7 +129,7 @@ if (isset($_GET['action']) &&$_GET['action'] === 'check_status') {
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="app-container">
         <!-- TAB UTAMA -->
         <div id="tab-utama" class="section-tab active">
             <div class="hero-card">
