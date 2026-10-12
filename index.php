@@ -144,14 +144,6 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
         }
         .facility-img { width: 85px; height: 85px; border-radius: 16px; object-fit: cover; }
 
-        /* SLOT MASA BTN */
-        .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .slot-btn {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff; padding: 12px; border-radius: 14px; text-align: center; font-size: 13px; cursor: pointer;
-        }
-        .slot-btn.selected { background: #38BDF8; color: #000; font-weight: 700; border-color: #38BDF8; }
-
         /* INPUT STYLES */
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; margin-bottom: 6px; color: rgba(255,255,255,0.8); }
@@ -165,9 +157,9 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(5, 9, 20, 0.85); backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.15);
-            display: flex; justify-content: space-around; padding: 12px 0; z-index: 1000;
+            display: flex; justify-style: space-around; padding: 12px 0; z-index: 1000;
         }
-        .nav-item { text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 11px; text-decoration: none; cursor: pointer; }
+        .nav-item { text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 11px; text-decoration: none; cursor: pointer; flex: 1; }
         .nav-item.active { color: #38BDF8; font-weight: 600; }
         .nav-item div { font-size: 18px; margin-bottom: 2px; }
 
@@ -226,12 +218,12 @@ if (isset($_GET['action']) &&$_GET['action'] === 'fetch') {
             
             <form id="formTempahan">
                 <div class="form-group">
-                    <label>1. Pilih Tarikh Tempahan</label>
-                    <input type="date" id="tarikh" required onchange="fetchCalendarEvents()">
+                    <label>1. Pilih Tarikh Tempahan *</label>
+                    <input type="date" id="tarikh" required>
                 </div>
 
                 <div class="form-group">
-                    <label>2. Pilih Masa Mula & Tamat</label>
+                    <label>2. Pilih Masa Mula & Tamat *</label>
                     <div style="display:flex; gap:10px;">
                         <input type="time" id="masa_mula" value="09:00" required>
                         <input type="time" id="masa_tamat" value="10:00" required>
