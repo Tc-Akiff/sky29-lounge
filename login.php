@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-// Jika sudah login, terus ke dashboard
 if (isset($_SESSION['admin_logged']) && $_SESSION['admin_logged'] === true) {
     header("Location: admin_dashboard.php");
     exit;
@@ -12,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
 
-    // ID & Password Laluan (Boleh ditukar mengikut keperluan)
     if ($username === 'admin' && $password === 'admin123') {
         $_SESSION['admin_logged'] = true;
         header("Location: admin_dashboard.php");
@@ -61,15 +59,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
     <div class="login-card">
-        <a href="index.php" style="color:#38BDF8; font-size:12px; text-decoration:none; display:inline-block; margin-bottom:16px;">← Kembali ke Utamapage</a>
+        <a href="index.php" style="color:#38BDF8; font-size:12px; text-decoration:none; display:inline-block; margin-bottom:16px;">← Kembali ke Utama</a>
         <h2 style="margin-bottom:6px;">Portal Admin</h2>
         <p style="font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:24px;">Sila log masuk untuk menguruskan tempahan.</p>
         
-        <?php if($error): ?>
-            <div class="error-msg"><?= $error ?></div>
+        <?php if(!empty($error)): ?>
+            <div class="error-msg"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
-        <form method="POST">
+        <form method="POST" action="login.php">
             <div class="form-group">
                 <label>ID Pentadbir</label>
                 <input type="text" name="username" placeholder="Masukkan ID Admin" required>
