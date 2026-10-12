@@ -1,38 +1,9 @@
 <?php
 session_start();
-
-// Kawalan Keselamatan: Mesti Log Masuk Dulu!
 if (!isset($_SESSION['admin_logged']) || $_SESSION['admin_logged'] !== true) {
     header("Location: login.php");
     exit;
 }
-
-$db_file = __DIR__ . '/sky29_lounge.sqlite';
-try {
-    $db = new PDO("sqlite:" . $db_file);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (Exception $e) {
-    die("Database Error");
-}
-
-// Tindakan Admin: LULUS ATAU BATAL
-if (isset($_GET['action']) && isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $act = $_GET['action'];
-
-    if ($act === 'lulus') {
-        $db->prepare("UPDATE tempahan SET status = 'LULUS' WHERE id = ?")->execute([$id]);
-        $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)")->execute([$id, 'DILULUSKAN_ADMIN', 'Pentadbir (Admin)']);
-    } elseif ($act === 'batal') {
-        $db->prepare("UPDATE tempahan SET status = 'DIBATALKAN' WHERE id = ?")->execute([$id]);
-        $db->prepare("INSERT INTO audit_log (tempahan_id, tindakan, dilakukan_oleh) VALUES (?, ?, ?)")->execute([$id, 'DIBATALKAN_ADMIN', 'Pentadbir (Admin)']);
-    }
-    header("Location: admin_dashboard.php");
-    exit;
-}
-
-$tempahan_list = $db->query("SELECT * FROM tempahan ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
-$audit_logs = $db->query("SELECT a.*, t.nama FROM audit_log a LEFT JOIN tempahan t ON a.tempahan_id = t.id ORDER BY a.id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="ms">
@@ -41,6 +12,26 @@ $audit_logs = $db->query("SELECT a.*, t.nama FROM audit_log a LEFT JOIN tempahan
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - SKY29 Lounge</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyC_hESDUgVpm-x_Ld5cE2gfMepz7SiwaGs",
+          authDomain: "sky29-lounge.firebaseapp.com",
+          projectId: "sky29-lounge",
+          storageBucket: "sky29-lounge.firebasestorage.app",
+          messagingSenderId: "265145556160",
+          appId: "1:265145556160:web:441cb15f46a570695fa125",
+          measurementId: "G-HWJBY59SE4"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+
     <style>
         * { box-sizing: border-box; font-family: 'Poppins', sans-serif; margin: 0; padding: 0; }
         body {
@@ -71,8 +62,8 @@ $audit_logs = $db->query("SELECT a.*, t.nama FROM audit_log a LEFT JOIN tempahan
         .status-PENDING { background: rgba(245, 158, 11, 0.2); color: #FBBF24; }
         .status-LULUS { background: rgba(52, 211, 153, 0.2); color: #34D399; }
         .status-DIBATALKAN { background: rgba(248, 113, 113, 0.2); color: #F87171; }
-        .btn-lulus { padding: 6px 12px; background: #10B981; color: #fff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 11px; display: inline-block; }
-        .btn-batal { padding: 6px 12px; background: #EF4444; color: #fff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 11px; display: inline-block; margin-left: 4px; }
+        .btn-lulus { padding: 6px 12px; background: #10B981; border:none; color: #fff; border-radius: 10px; font-weight: 600; font-size: 11px; cursor: pointer; }
+        .btn-batal { padding: 6px 12px; background: #EF4444; border:none; color: #fff; border-radius: 10px; font-weight: 600; font-size: 11px; cursor: pointer; margin-left: 4px; }
         .btn-logout { padding: 8px 16px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #FCA5A5; border-radius: 12px; text-decoration: none; font-size: 12px; font-weight: 600; }
     </style>
 </head>
@@ -102,30 +93,8 @@ $audit_logs = $db->query("SELECT a.*, t.nama FROM audit_log a LEFT JOIN tempahan
                             <th>Tindakan</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach($tempahan_list as $t): ?>
-                        <tr>
-                            <td><strong>#SKY<?= str_pad($t['id'], 5, '0', STR_PAD_LEFT) ?></strong></td>
-                            <td>
-                                <div><strong><?= htmlspecialchars($t['nama']) ?></strong></div>
-                                <div style="font-size:10px; color:rgba(255,255,255,0.6);"><?= htmlspecialchars($t['bahagian']) ?> | <?= htmlspecialchars($t['no_tel']) ?></div>
-                            </td>
-                            <td>
-                                <div><?= htmlspecialchars($t['tarikh']) ?></div>
-                                <div style="font-size:10px; color:rgba(255,255,255,0.6);"><?= $t['masa_mula'] ?> - <?= $t['masa_tamat'] ?></div>
-                            </td>
-                            <td><?= htmlspecialchars($t['tujuan']) ?></td>
-                            <td><span class="badge status-<?= $t['status'] ?>"><?= $t['status'] ?></span></td>
-                            <td>
-                                <?php if($t['status'] !== 'LULUS'): ?>
-                                    <a href="admin_dashboard.php?action=lulus&id=<?= $t['id'] ?>" class="btn-lulus">Lulus</a>
-                                <?php endif; ?>
-                                <?php if($t['status'] !== 'DIBATALKAN'): ?>
-                                    <a href="admin_dashboard.php?action=batal&id=<?= $t['id'] ?>" class="btn-batal">Batal</a>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+                    <tbody id="jadual-tempahan">
+                        <tr><td colspan="6" style="text-align:center;">Memuatkan data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -144,20 +113,79 @@ $audit_logs = $db->query("SELECT a.*, t.nama FROM audit_log a LEFT JOIN tempahan
                             <th>Pelaksana</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach($audit_logs as $log): ?>
-                        <tr>
-                            <td style="font-size:11px; color:rgba(255,255,255,0.7);"><?= $log['tarikh_masa'] ?></td>
-                            <td><strong>#SKY<?= str_pad($log['tempahan_id'], 5, '0', STR_PAD_LEFT) ?></strong></td>
-                            <td><span style="color:#38BDF8; font-weight:600;"><?= $log['tindakan'] ?></span></td>
-                            <td><?= htmlspecialchars($log['dilakukan_oleh']) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
+                    <tbody id="jadual-audit">
+                        <tr><td colspan="4" style="text-align:center;">Memuatkan log...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
     </div>
+
+    <script>
+        db.collection("tempahan").orderBy("created_at", "desc").onSnapshot(function(snapshot) {
+            var tbody = document.getElementById("jadual-tempahan");
+            tbody.innerHTML = "";
+
+            if (snapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Tiada tempahan lagi.</td></tr>';
+                return;
+            }
+
+            snapshot.forEach(function(doc) {
+                var t = doc.data();
+                var docId = doc.id;
+                var booking_id = "#SKY" + docId.substring(0, 5).toUpperCase();
+
+                var tr = document.createElement("tr");
+                tr.innerHTML = 
+                    '<td><strong>' + booking_id + '</strong></td>' +
+                    '<td><div><strong>' + t.nama + '</strong></div><div style="font-size:10px; color:rgba(255,255,255,0.6);">' + t.bahagian + ' | ' + t.no_tel + '</div></td>' +
+                    '<td><div>' + t.tarikh + '</div><div style="font-size:10px; color:rgba(255,255,255,0.6);">' + t.masa_mula + ' - ' + t.masa_tamat + '</div></td>' +
+                    '<td>' + t.tujuan + '</td>' +
+                    '<td><span class="badge status-' + t.status + '">' + t.status + '</span></td>' +
+                    '<td>' +
+                        (t.status !== 'LULUS' ? '<button class="btn-lulus" onclick="kemaskiniStatus(\'' + docId + '\', \'LULUS\', \'' + booking_id + '\')">Lulus</button>' : '') +
+                        (t.status !== 'DIBATALKAN' ? '<button class="btn-batal" onclick="kemaskiniStatus(\'' + docId + '\', \'DIBATALKAN\', \'' + booking_id + '\')">Batal</button>' : '') +
+                    '</td>';
+                tbody.appendChild(tr);
+            });
+        });
+
+        function kemaskiniStatus(docId, statusBaru, bookingId) {
+            db.collection("tempahan").doc(docId).update({
+                status: statusBaru
+            }).then(function() {
+                var tindakanText = statusBaru === 'LULUS' ? 'DILULUSKAN_ADMIN' : 'DIBATALKAN_ADMIN';
+                db.collection("audit_log").add({
+                    tempahan_id: bookingId,
+                    tindakan: tindakanText,
+                    dilakukan_oleh: "Pentadbir (Admin)",
+                    tarikh_masa: new Date().toLocaleString('ms-MY')
+                });
+            });
+        }
+
+        db.collection("audit_log").onSnapshot(function(snapshot) {
+            var tbody = document.getElementById("jadual-audit");
+            tbody.innerHTML = "";
+
+            if (snapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tiada log aktiviti.</td></tr>';
+                return;
+            }
+
+            snapshot.forEach(function(doc) {
+                var log = doc.data();
+                var tr = document.createElement("tr");
+                tr.innerHTML = 
+                    '<td style="font-size:11px; color:rgba(255,255,255,0.7);">' + log.tarikh_masa + '</td>' +
+                    '<td><strong>' + log.tempahan_id + '</strong></td>' +
+                    '<td><span style="color:#38BDF8; font-weight:600;">' + log.tindakan + '</span></td>' +
+                    '<td>' + log.dilakukan_oleh + '</td>';
+                tbody.appendChild(tr);
+            });
+        });
+    </script>
 </body>
 </html>
