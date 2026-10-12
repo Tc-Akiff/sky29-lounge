@@ -127,6 +127,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
             width: 100%; padding: 14px; background: linear-gradient(135deg, #38BDF8, #0284C7);
             border: none; border-radius: 16px; color: #fff; font-weight: 600; cursor: pointer; margin-top: 12px;
         }
+        .back-link {
+            color: #38BDF8; font-size: 12px; text-decoration: none; display: inline-block; margin-bottom: 12px; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -165,6 +168,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
 
         <!-- TAB TEMPAH -->
         <div id="tab-tempah" class="section-tab">
+            <a onclick="switchTab('tab-utama')" class="back-link">← Kembali ke Utama</a>
             <h3 style="margin-bottom: 16px;">Tempah Lounge SKY29</h3>
             <form id="formTempahan">
                 <div class="form-group">
@@ -204,6 +208,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
 
         <!-- TAB STATUS -->
         <div id="tab-status" class="section-tab">
+            <a onclick="switchTab('tab-utama')" class="back-link">← Kembali ke Utama</a>
             <h3 style="margin-bottom: 16px;">Semak Status Tempahan</h3>
             <p style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 16px;">Masukkan No. Telefon atau E-mel yang digunakan semasa tempahan.</p>
             <div class="form-group">
@@ -216,33 +221,59 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_status') {
 
     <!-- BOTTOM NAV -->
     <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('tab-utama', this)">
+        <div class="nav-item active" onclick="switchTab('tab-utama')">
             <div>🏠</div>Utama
         </div>
-        <div class="nav-item" onclick="switchTab('tab-tempah', this)">
+        <div class="nav-item" onclick="switchTab('tab-tempah')">
             <div>📅</div>Tempah
         </div>
-        <div class="nav-item" onclick="switchTab('tab-status', this)">
+        <div class="nav-item" onclick="switchTab('tab-status')">
             <div>📑</div>Status
         </div>
     </div>
 
     <script>
-        function switchTab(tabId, el) {
+        function switchTab(tabId, updateHistory = true) {
             var tabs = document.querySelectorAll('.section-tab');
             for(var i = 0; i < tabs.length; i++) {
                 tabs[i].classList.remove('active');
             }
-            document.getElementById(tabId).classList.add('active');
-
-            if(el) {
-                var navs = document.querySelectorAll('.nav-item');
-                for(var j = 0; j < navs.length; j++) {
-                    navs[j].classList.remove('active');
-                }
-                el.classList.add('active');
+            var targetTab = document.getElementById(tabId);
+            if(targetTab) {
+                targetTab.classList.add('active');
             }
+
+            var navs = document.querySelectorAll('.nav-item');
+            for(var j = 0; j < navs.length; j++) {
+                navs[j].classList.remove('active');
+            }
+            
+            var activeNav = document.querySelector('.nav-item[onclick*="' + tabId + '"]');
+            if(activeNav) {
+                activeNav.classList.add('active');
+            }
+
+            if (updateHistory) {
+                history.pushState({ tab: tabId }, '', '#' + tabId.replace('tab-', ''));
+            }
+
+            window.scrollTo(0, 0);
         }
+
+        window.addEventListener('popstate', function(e) {
+            if (e.state && e.state.tab) {
+                switchTab(e.state.tab, false);
+            } else {
+                switchTab('tab-utama', false);
+            }
+        });
+
+        window.addEventListener('load', function() {
+            var hash = window.location.hash.replace('#', '');
+            if (hash && document.getElementById('tab-' + hash)) {
+                switchTab('tab-' + hash, false);
+            }
+        });
 
         document.getElementById('formTempahan').addEventListener('submit', function(e) {
             e.preventDefault();
